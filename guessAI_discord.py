@@ -10,7 +10,6 @@ load_dotenv()
 discord_token = os.getenv("TOKEN")
 gemini_api_key = os.getenv("APIKEY")
 
-# Initialize the Gemini client and chat session
 client_ai = genai.Client(api_key=gemini_api_key)
 chat = client_ai.chats.create(model="gemini-2.0-flash")
 
@@ -38,8 +37,7 @@ client = MyClient()
 async def guess_ai(interaction: discord.Interaction, difficulty: str, questions: int, extra: str):
     await interaction.response.defer()
     
-    if interaction.channel and interaction.channel.name == "ai-channel": 
-        # Start the conversation with the initial prompt.
+    if interaction.channel and interaction.channel.name == "ai-channel":
         conversation_history = (
             f"You are thinking of a famous person with the {difficulty} difficulty. "
             f"Let's play a guessing game with {questions} yes/no questions. "
@@ -47,31 +45,25 @@ async def guess_ai(interaction: discord.Interaction, difficulty: str, questions:
             f"Extra instructions: {extra}"
         )
         
-        # Send initial prompt to the AI and relay its introduction.
         ai_response = chat.send_message(conversation_history)
         await interaction.followup.send(ai_response.text)
         
-        # Allow multiple turns: each iteration represents one question/answer turn.
         for i in range(questions):
             def check(message: discord.Message):
                 return (message.author.id == interaction.user.id and 
                         message.channel.id == interaction.channel.id)
             
             try:
-                # Wait for the user's answer with a timeout (60 seconds in this example)
                 user_message = await client.wait_for("message", timeout=200.0, check=check)
             except asyncio.TimeoutError:
                 await interaction.followup.send("Timeout waiting for your answer. Game over.")
                 return
             
-            # Append the user's response to the conversation history
             conversation_history += f"\nUser: {user_message.content}"
             
-            # Get the AI's next response based on the updated conversation history
             ai_response = chat.send_message(conversation_history)
             await interaction.followup.send(ai_response.text)
             
-            # Optionally, check if the AI indicates the game has ended (e.g., it guessed correctly)
             if "guessed" in ai_response.text.lower():
                 break
         
