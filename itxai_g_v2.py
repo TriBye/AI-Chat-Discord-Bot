@@ -5,16 +5,13 @@ from discord import app_commands
 from dotenv import load_dotenv
 import google.generativeai as genai
 
-# Load environment variables from .env file
 load_dotenv()
 discord_token = os.getenv("TOKEN")
 gemini_api_key = os.getenv("APIKEY")
 
-# Configure the Google Gemini API
 genai.configure(api_key=gemini_api_key)
 model = genai.GenerativeModel("gemini-1.5-flash")
 
-# Set up the Discord bot
 intents = discord.Intents.default()
 intents.messages = True
 intents.message_content = True
@@ -34,31 +31,24 @@ client = MyClient()
 
 @client.event
 async def on_message(message):
-    # Ignore messages from the bot itself
     if message.author == client.user:
         return
 
-    # Check if the message is in the specified channel
     if message.channel.name == "ai-channel":
         try:
             user_id = message.author.id
 
-            # Initialize conversation for the user if not exists
             if user_id not in client.conversations:
                 client.conversations[user_id] = []
 
-            # Add user input to the conversation history
             client.conversations[user_id].append({"role": "user", "content": message.content})
 
-            # Generate response using the conversation history
             context = client.conversations[user_id]
             response = model.generate_content("\n".join([f"{msg['role']}: {msg['content']}" for msg in context]))
             ai_response = response.text
 
-            # Add AI response to the conversation history
             client.conversations[user_id].append({"role": "assistant", "content": ai_response})
 
-            # Send the AI response to the channel
             await message.channel.send(ai_response)
         except Exception as e:
             await message.channel.send(f"Sorry, there was an error processing your request: {e}")
@@ -67,39 +57,31 @@ async def on_message(message):
 @app_commands.describe(prompt="The text to which the AI should respond.")
 async def ai(interaction: discord.Interaction, prompt: str):
     try:
-        # Defer the interaction to prevent it from expiring
         await interaction.response.defer()
 
-        # Generate AI response
         response = model.generate_content(prompt)
         response_text = response.text
 
-        # Send the final response
         await interaction.followup.send(f"{response_text}")
     except Exception as e:
-        # Send an error message
         await interaction.followup.send(f"Sorry, there was an error processing your request: {e}", ephemeral=True)
 
 @client.tree.command(name="ai_custom", description="Get a response from the AI based on your input and creativity setting.")
 @app_commands.describe(prompt="The text to which the AI should respond.", creativity="Creativity level for the AI (e.g., 0.1 for low creativity, 1.0 for high creativity).", style="Enter text style")
 async def ai_custom(interaction: discord.Interaction, prompt: str, creativity: float, style: str):
     try:
-        # Ensure that creativity is a valid float
         try:
             creativity = float(creativity)
         except ValueError:
             await interaction.response.send_message("Creativity must be a number between 0.0 and 10.0", ephemeral=True)
             return
 
-        # Validate creativity level
         if not (0.0 <= creativity <= 10.0):
             await interaction.response.send_message("Creativity must be between 0.0 and 10.0", ephemeral=True)
             return
 
-        # Defer the interaction to prevent it from expiring
         await interaction.response.defer()
 
-        # Generate AI response with custom creativity
         response = model.generate_content(
             f"{prompt} in {style} style",
             generation_config=genai.types.GenerationConfig(
@@ -109,17 +91,14 @@ async def ai_custom(interaction: discord.Interaction, prompt: str, creativity: f
         )
         response_text = response.text
 
-        # Send the final response
         await interaction.followup.send(f"{response_text}")
     except Exception as e:
-        # Send an error message
         await interaction.followup.send(f"Sorry, there was an error processing your request: {e}", ephemeral=True)
 
-# Register the command explicitly if needed
 @client.event
 async def on_ready():
     try:
-        await client.tree.sync()  # Sync globally
+        await client.tree.sync() 
         print(f"Logged in as {client.user}. Command tree synced.")
     except Exception as e:
         print(f"Error syncing commands: {e}")
